@@ -34,4 +34,5 @@ The scene highlights new objects individually and grown structures by their loca
 - Leaks light up individually in a stable layout ([0004](0004-physical-address-scene-layout.md)).
 - A handle freed and reused by a new object of the same class is seen as the same object.
   This is rare enough to accept and only affects individual highlighting, not aggregate growth.
-- The adapter depends on the edge row layout of `.rmem` format version 1, and checks the format version when opening a file.
+- The adapter depends on the edge row layout of `.rmem` format version 1.
+  reli's `Reader` rejects files of any other format version, which protects the adapter.

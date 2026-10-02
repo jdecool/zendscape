@@ -27,8 +27,16 @@ The options were:
 ## Decision
 
 The scene is laid out by physical address.
-Each chunk is a block, its pages form a grid, and each value sits in its page.
+Each chunk is a block, its pages form a grid, and each allocation sits in its page.
 Huge allocations are drawn as separate blocks.
+
+The unit placed in the scene is an allocation (a reli memory location), not a node.
+Many nodes are logical contexts without memory of their own (array elements, object property lists), and some nodes own several blocks (an object and its property table).
+Selecting a node highlights every allocation it owns.
+
+Allocations outside ZendMM (interned strings, persistent and opcache data, classified `outside` by reli) are the majority of locations in a typical snapshot.
+They are not part of the chunk geometry and are left out of the v1 scene, consistently with opcache being out of v1 scope.
+They remain reachable through the side panels.
 
 The logical graph is shown through reference bundles in the scene and through 2D side panels (retention paths, roots, rankings).
 

@@ -41,6 +41,9 @@ Exit criteria: CI green, fixtures regenerable with a single command.
 
 ## Phase 2 - Backend core: adapter, session, layout
 
+Status: done.
+The adapter is `Zendscape\Snapshot\Snapshot`, enforced as the only reli dependent by `ArchitectureTest`.
+
 - Reli adapter module, the only place importing reli classes ([ADR 0001](adr/0001-build-on-reli.md)).
   It exposes Zendscape's own types: snapshot, node, edge, root, and the query results needed later (path to root, retention paths, rankings, search).
 - Session model: ordered list of snapshots ([ADR 0002](adr/0002-offline-snapshot-sessions.md)).
