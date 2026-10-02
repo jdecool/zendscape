@@ -4,7 +4,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { NO_CLASS, type Allocations } from './api';
 import { PAGE_SIZE, ROW_BYTES, allocationRects, pageOrigin, placeBlocks, type BlockPlacement } from './layout';
 
-export type ColorMode = 'type' | 'class';
+export type ColorMode = 'type' | 'class' | 'changes';
 
 export interface LegendEntry {
   name: string;
@@ -25,6 +25,8 @@ const colors = {
   unclassified: new THREE.Color('#6d71a3'),
   selection: new THREE.Color('#ffd15c'),
   retention: new THREE.Color('#ff9e5c'),
+  added: new THREE.Color('#6cf2b4'),
+  unchanged: new THREE.Color('#4b4f86'),
 };
 
 /** Below this distance from a block, its allocations replace its page bars (ADR 0004). */
@@ -69,6 +71,8 @@ export class HeapScene {
     opacity: 0.9,
     depthWrite: false,
   });
+  /** Objects created since the baseline snapshot, for the 'changes' coloring. */
+  private newNodes = new Set<number>();
   /** node id => its first allocation, to find a node picked from a list in the scene */
   private firstAllocation = new Map<number, number>();
   private pointerDown: { x: number; y: number } | null = null;
@@ -202,14 +206,20 @@ export class HeapScene {
     return legend;
   }
 
+  /** Objects that did not exist in the baseline snapshot, shown by the 'changes' coloring. */
+  setNewNodes(nodes: Iterable<number>): void {
+    this.newNodes = new Set(nodes);
+  }
+
   /** Recolors allocations and page bars, returning the legend of the new coloring. */
   recolor(mode: ColorMode): LegendEntry[] {
     const data = this.data;
     if (!data) {
       return [];
     }
-    const categoryOf = (i: number): number => (mode === 'type' ? (data.type[i] ?? 0) : (data.class[i] ?? NO_CLASS));
-    const names = mode === 'type' ? data.types : data.classes;
+    const categoryOf = (i: number): number =>
+      mode === 'type' ? (data.type[i] ?? 0) : mode === 'class' ? (data.class[i] ?? NO_CLASS) : this.newNodes.has(data.node[i] ?? 0) ? 0 : NO_CLASS;
+    const names = mode === 'type' ? data.types : mode === 'class' ? data.classes : ['New since the baseline'];
 
     const bytes = new Map<number, number>();
     const counts = new Map<number, number>();
@@ -220,8 +230,9 @@ export class HeapScene {
     }
     // Hues follow rank by bytes so the biggest consumers get the most distinct colors.
     const ranked = [...bytes.keys()].filter((c) => c !== NO_CLASS).sort((a, b) => (bytes.get(b) ?? 0) - (bytes.get(a) ?? 0));
-    const palette = new Map(ranked.map((category, rank) => [category, prism(rank)]));
-    const colorOf = (category: number): THREE.Color => palette.get(category) ?? colors.unclassified;
+    const palette = new Map(ranked.map((category, rank) => [category, mode === 'changes' ? colors.added : prism(rank)]));
+    const background = mode === 'changes' ? colors.unchanged : colors.unclassified;
+    const colorOf = (category: number): THREE.Color => palette.get(category) ?? background;
 
     const color = new THREE.Color();
     for (const block of this.blocks) {
@@ -271,7 +282,7 @@ export class HeapScene {
     return [...bytes.entries()]
       .sort((a, b) => Number(a[0] === NO_CLASS) - Number(b[0] === NO_CLASS) || b[1] - a[1])
       .map(([category, total]) => ({
-        name: category === NO_CLASS ? 'Not an object' : (names[category] ?? '?'),
+        name: category === NO_CLASS ? (mode === 'changes' ? 'Already there' : 'Not an object') : (names[category] ?? '?'),
         color: `#${colorOf(category).getHexString()}`,
         bytes: total,
         count: counts.get(category) ?? 0,
@@ -537,6 +548,7 @@ export class HeapScene {
     this.select(null);
     this.showPaths([]);
     this.firstAllocation.clear();
+    this.newNodes.clear();
     this.world.clear();
     for (const resource of this.disposables) {
       resource.dispose();

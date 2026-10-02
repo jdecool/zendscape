@@ -14,19 +14,18 @@
         <span class="visually-hidden">Snapshot</span>
         <select id="snapshot" disabled></select>
       </label>
+      <label class="field compare">
+        <span>Compare with</span>
+        <select id="baseline" disabled></select>
+      </label>
       <label class="button">
         Open snapshot
         <input id="upload" type="file" accept=".rmem" class="visually-hidden" />
       </label>
       <label class="toggle">
         <input id="reveal" type="checkbox" />
-        <span>Show string values</span>
+        <span>Show strings</span>
       </label>
-      <div class="segmented" role="radiogroup" aria-label="Color allocations by">
-        <span class="segmented-label">Color by</span>
-        <label><input type="radio" name="color" value="type" checked /> <span>Type</span></label>
-        <label><input type="radio" name="color" value="class" /> <span>Class</span></label>
-      </div>
     </header>
 
     <div id="status" class="status" role="status"></div>
@@ -36,11 +35,17 @@
         <button type="button" data-view="classes">Classes</button>
         <button type="button" data-view="largest">Largest</button>
         <button type="button" data-view="search">Search</button>
+        <button type="button" data-view="changes">Changes</button>
       </nav>
       <div id="inspector" class="inspector-body" aria-live="polite"></div>
     </aside>
 
     <aside class="card legend" aria-label="Legend">
+      <div class="segmented small" role="radiogroup" aria-label="Color allocations by">
+        <label><input type="radio" name="color" value="type" checked /> <span>Type</span></label>
+        <label><input type="radio" name="color" value="class" /> <span>Class</span></label>
+        <label><input type="radio" name="color" value="changes" disabled /> <span>Changes</span></label>
+      </div>
       <h2 id="legend-title">Bytes by type</h2>
       <ol id="legend"></ol>
     </aside>

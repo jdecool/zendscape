@@ -1,4 +1,4 @@
-import { api, type Neighbourhood, type NodeSummary, type PathStep } from './api';
+import { api, type DiffResult, type Neighbourhood, type NodeSummary, type PathStep } from './api';
 import { h } from './dom';
 import { formatBytes, humanizeLabel, humanizeType } from './format';
 
@@ -7,6 +7,7 @@ export type View =
   | { kind: 'instances'; className: string }
   | { kind: 'largest' }
   | { kind: 'search'; query: string }
+  | { kind: 'changes' }
   | { kind: 'node'; id: number };
 
 export interface InspectorHost {
@@ -16,6 +17,8 @@ export interface InspectorHost {
   focus(node: number, fly: boolean): boolean;
   /** Retention paths of the inspected node, as node ids from root to node, for the scene to draw. */
   showPaths(paths: number[][]): void;
+  /** The comparison with a baseline snapshot, null when none is chosen. */
+  changes(): { baseline: string; diff: Promise<DiffResult> } | null;
 }
 
 const ADDRESS = /^(?:0x)?[0-9a-f]{6,16}$/i;
@@ -39,7 +42,8 @@ export class Inspector {
     for (const button of tabs.querySelectorAll<HTMLButtonElement>('button[data-view]')) {
       button.addEventListener('click', () => {
         const kind = button.dataset.view;
-        this.open(kind === 'largest' ? { kind: 'largest' } : kind === 'search' ? { kind: 'search', query: '' } : { kind: 'classes' }, true);
+        const views: Record<string, View> = { largest: { kind: 'largest' }, search: { kind: 'search', query: '' }, changes: { kind: 'changes' } };
+        this.open(views[kind ?? ''] ?? { kind: 'classes' }, true);
       });
     }
   }
@@ -127,6 +131,9 @@ export class Inspector {
         break;
       case 'node':
         fill(this.node(snapshot, view.id, live));
+        break;
+      case 'changes':
+        fill(this.changes());
         break;
     }
   }
@@ -218,6 +225,93 @@ export class Inspector {
       input.focus();
     });
     return [input, results];
+  }
+
+  private async changes(): Promise<Node[]> {
+    const changes = this.host.changes();
+    if (!changes) {
+      return [h('p', { className: 'muted' }, 'Choose an earlier snapshot in “Compare with” to see what grew since then.')];
+    }
+    const diff = await changes.diff;
+    const newCount = diff.newObjectsByClass.reduce((sum, row) => sum + row.count, 0);
+    const signed = (n: number): string => (n > 0 ? `+${n.toLocaleString('en')}` : n.toLocaleString('en'));
+    const signedBytes = (n: number): string => (n < 0 ? `−${formatBytes(-n)}` : `+${formatBytes(n)}`);
+
+    return [
+      h('h2', {}, `Since ${changes.baseline}`),
+      diff.handlesAvailable
+        ? h('p', { className: 'muted' }, `${newCount.toLocaleString('en')} new object${newCount === 1 ? '' : 's'}, shown in green when coloring by changes.`)
+        : h(
+            'p',
+            { className: 'notice' },
+            'One of these snapshots has no object handles, a known capture defect of reli, so new objects cannot be told apart from survivors. Growth by structure and by class below is still accurate.',
+          ),
+      h('h3', {}, 'What grew'),
+      diff.growth.length === 0
+        ? h('p', { className: 'muted' }, 'No structure grew between these snapshots.')
+        : h(
+            'ol',
+            { className: 'growth' },
+            ...diff.growth.slice(0, 20).map((entry) =>
+              h(
+                'li',
+                {},
+                h(
+                  'button',
+                  { type: 'button', onclick: () => { this.select(entry.node); } },
+                  h('span', { className: 'path' }, entry.path.join(' › ')),
+                  h(
+                    'span',
+                    { className: 'sizes' },
+                    h('span', { className: 'growth-delta' }, signedBytes(entry.delta)),
+                    h('span', {}, `${formatBytes(entry.before)} → ${formatBytes(entry.after)}`),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ...(diff.newObjectsByClass.length === 0
+        ? []
+        : [
+            h('h3', {}, 'New objects by class'),
+            h(
+              'ol',
+              { className: 'rows' },
+              ...diff.newObjectsByClass.slice(0, 20).map((row) =>
+                h(
+                  'li',
+                  {},
+                  h(
+                    'button',
+                    { type: 'button', className: 'row', onclick: () => { this.open({ kind: 'instances', className: row.class }); } },
+                    h('span', { className: 'row-name' }, row.class),
+                    h('span', { className: 'row-size growth-delta' }, signed(row.count)),
+                  ),
+                ),
+              ),
+            ),
+          ]),
+      h('h3', {}, 'Classes that changed'),
+      diff.classes.length === 0
+        ? h('p', { className: 'muted' }, 'Every class has as many instances as before.')
+        : h(
+            'ol',
+            { className: 'rows' },
+            ...diff.classes.slice(0, 30).map((row) =>
+              h(
+                'li',
+                {},
+                h(
+                  'button',
+                  { type: 'button', className: 'row', onclick: () => { this.open({ kind: 'instances', className: row.class }); } },
+                  h('span', { className: 'row-name' }, row.class),
+                  h('span', { className: 'row-meta' }, `${signed(row.countAfter - row.countBefore)} objects`),
+                  h('span', { className: 'row-size' }, signedBytes(row.bytesAfter - row.bytesBefore)),
+                ),
+              ),
+            ),
+          ),
+    ];
   }
 
   private async node(snapshot: number, id: number, live: () => boolean): Promise<Node[]> {

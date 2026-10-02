@@ -11,6 +11,10 @@ export function formatBytes(bytes: number): string {
 
 /** reli names node types after its walker contexts: "ArrayPossibleOverheadContext" reads as "Array possible overhead". */
 export function humanizeType(type: string): string {
+  // reli calls an array node its header; to a PHP developer it is simply the array.
+  if (type === 'ArrayHeaderContext') {
+    return 'Array';
+  }
   const words = type.replace(/Context$/, '').split(/(?<=[a-z])(?=[A-Z])/);
   return words.map((word, i) => (i === 0 ? word : word.toLowerCase())).join(' ');
 }

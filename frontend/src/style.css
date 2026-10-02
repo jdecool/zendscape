@@ -10,6 +10,7 @@
   --ink-muted: #9c9ac0;
   --probe: #ffd15c;
   --retention: #ff9e5c;
+  --new: #6cf2b4;
   --inspector-width: 380px;
   --panel: rgb(27 29 58 / 82%);
   --sans: 'Atkinson Hyperlegible Next', system-ui, sans-serif;
@@ -60,7 +61,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 16px;
+  gap: 10px 12px;
   pointer-events: none;
 }
 
@@ -94,7 +95,7 @@ select,
 }
 
 select {
-  max-width: 260px;
+  max-width: 190px;
 }
 
 .button {
@@ -151,6 +152,78 @@ select:focus-visible,
   color: var(--ink-muted);
 }
 
+.segmented input:disabled + span {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.compare {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--ink-muted);
+}
+
+.compare select {
+  max-width: 190px;
+}
+
+.growth-delta {
+  color: var(--new);
+}
+
+.notice {
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--probe);
+  background: rgb(255 209 92 / 8%);
+  font-size: 14px;
+}
+
+.growth {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.growth button {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-left: 3px solid var(--new);
+  border-radius: 0;
+  background: rgb(108 242 180 / 7%);
+  text-align: left;
+  cursor: pointer;
+}
+
+.growth button:hover {
+  background: rgb(108 242 180 / 14%);
+}
+
+.growth button:focus-visible {
+  outline: 2px solid var(--probe);
+  outline-offset: 1px;
+}
+
+.growth .path {
+  font-family: var(--mono);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.growth .sizes {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+
 .segmented input:checked + span {
   background: var(--slab);
   color: var(--ink);
@@ -191,6 +264,20 @@ select:focus-visible,
   width: 260px;
   max-height: 40vh;
   overflow: auto;
+}
+
+.legend .segmented {
+  display: flex;
+  margin-bottom: 10px;
+}
+
+.legend .segmented label {
+  flex: 1;
+}
+
+.legend .segmented span {
+  justify-content: center;
+  width: 100%;
 }
 
 .legend h2 {
@@ -526,10 +613,6 @@ button {
   :root {
     --inspector-width: 320px;
   }
-
-  .legend {
-    display: none;
-  }
 }
 
 @media (width < 720px) {
@@ -544,7 +627,8 @@ button {
     height: 45vh;
   }
 
-  .hint {
+  .hint,
+  .legend {
     display: none;
   }
 }

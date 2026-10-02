@@ -8,6 +8,7 @@ use Amp\Http\HttpStatus;
 use Amp\Http\Server\Request;
 use Amp\Http\Server\RequestHandler;
 use Amp\Http\Server\Response;
+use Zendscape\Diff;
 use Zendscape\GraphWalk;
 use Zendscape\Session;
 use Zendscape\Snapshot\NodeDetail;
@@ -28,6 +29,9 @@ final class Api implements RequestHandler
 
     /** @var array<int, string> snapshot id => encoded allocations */
     private array $allocationPayloads = [];
+
+    /** @var array<string, string> "from:to" => encoded diff, computing one takes seconds on large heaps */
+    private array $diffs = [];
 
     /** @var array<int, string> snapshot id => uploaded file, deleted when the snapshot is closed */
     private array $uploads = [];
@@ -66,6 +70,7 @@ final class Api implements RequestHandler
     {
         $this->session->remove($id);
         unset($this->allocationPayloads[$id]);
+        $this->diffs = array_filter($this->diffs, static fn(string $key): bool => !in_array((string) $id, explode(':', $key), true), ARRAY_FILTER_USE_KEY);
         if (isset($this->uploads[$id])) {
             @unlink($this->uploads[$id]);
             unset($this->uploads[$id]);
@@ -82,6 +87,10 @@ final class Api implements RequestHandler
                 'POST' => $this->upload($request),
                 default => self::error(HttpStatus::METHOD_NOT_ALLOWED, 'Method not allowed'),
             };
+        }
+
+        if ($path === '/api/diff' && $method === 'GET') {
+            return $this->diff($request);
         }
 
         if (preg_match('#^/api/snapshots/(\d+)(/.*)?$#', $path, $m) !== 1) {
@@ -148,6 +157,23 @@ final class Api implements RequestHandler
         );
 
         return [...$graph, 'nodes' => $this->mask(array_values($graph['nodes']), $reveal)];
+    }
+
+    private function diff(Request $request): Response
+    {
+        $ids = [];
+        foreach (['from', 'to'] as $name) {
+            $id = self::intQuery($request, $name, 0, 0, PHP_INT_MAX);
+            $ids[] = $this->session->has($id) ? $id : throw new NotFound("No snapshot {$id}");
+        }
+        [$from, $to] = $ids;
+
+        $json = $this->diffs["{$from}:{$to}"] ??= json_encode(
+            Diff::compute($this->session->snapshot($from), $this->session->snapshot($to)),
+            JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES,
+        );
+
+        return new Response(HttpStatus::OK, ['content-type' => 'application/json'], $json);
     }
 
     /** @return list<array{id: int, name: string, nodeCount: int, handlesAvailable: bool}> */

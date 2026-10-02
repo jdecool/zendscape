@@ -70,6 +70,15 @@ export interface Neighbourhood {
   truncated: boolean;
 }
 
+export interface DiffResult {
+  /** False when a snapshot lacks object handles, so new objects cannot be told apart (ADR 0006). */
+  handlesAvailable: boolean;
+  newObjects: number[];
+  newObjectsByClass: { class: string; count: number }[];
+  classes: { class: string; countBefore: number; countAfter: number; bytesBefore: number; bytesAfter: number }[];
+  growth: { node: number; path: string[]; before: number; after: number; delta: number }[];
+}
+
 interface Header {
   count: number;
   blocks: Block[];
@@ -149,6 +158,7 @@ export const api = {
   retentionPaths: (snapshot: number, node: number) => json<PathStep[][]>(`${snapshotPath(snapshot)}/nodes/${String(node)}/retention-paths?limit=5`),
   references: (snapshot: number, node: number, direction: 'in' | 'out', depth: number) =>
     json<Neighbourhood>(`${snapshotPath(snapshot)}/nodes/${String(node)}/references?direction=${direction}&depth=${String(depth)}&limit=300`),
+  diff: (from: number, to: number) => json<DiffResult>(`/api/diff?from=${String(from)}&to=${String(to)}`),
   async upload(file: File): Promise<{ id: number; name: string }> {
     const response = await fetch('/api/snapshots', {
       method: 'POST',

@@ -14,6 +14,7 @@ describe('humanizeType', () => {
     expect(humanizeType('ArrayPossibleOverheadContext')).toBe('Array possible overhead');
     expect(humanizeType('StringContext')).toBe('String');
     expect(humanizeType('ObjectsStoreContext')).toBe('Objects store');
+    expect(humanizeType('ArrayHeaderContext')).toBe('Array');
   });
 });
 

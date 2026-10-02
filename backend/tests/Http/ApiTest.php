@@ -23,7 +23,7 @@ final class ApiTest extends TestCase
     public static function setUpBeforeClass(): void
     {
         $process = proc_open(
-            [PHP_BINARY, __DIR__ . '/../../bin/zendscape', 'serve', '--port=0', self::FIXTURES . '/static-cache.t1.rmem', self::FIXTURES . '/object-cycle.t1.rmem'],
+            [PHP_BINARY, __DIR__ . '/../../bin/zendscape', 'serve', '--port=0', self::FIXTURES . '/static-cache.t1.rmem', self::FIXTURES . '/object-cycle.t1.rmem', self::FIXTURES . '/static-cache.t0.rmem'],
             [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
             $pipes,
         );
@@ -50,9 +50,9 @@ final class ApiTest extends TestCase
     {
         $snapshots = self::snapshots();
 
-        self::assertSame([1, 2], array_column($snapshots, 'id'));
-        self::assertSame(['static-cache.t1.rmem', 'object-cycle.t1.rmem'], array_column($snapshots, 'name'));
-        self::assertSame([true, true], array_column($snapshots, 'handlesAvailable'));
+        self::assertSame([1, 2, 3], array_column($snapshots, 'id'));
+        self::assertSame(['static-cache.t1.rmem', 'object-cycle.t1.rmem', 'static-cache.t0.rmem'], array_column($snapshots, 'name'));
+        self::assertSame([true, true, true], array_column($snapshots, 'handlesAvailable'));
         self::assertGreaterThan(10_000, $snapshots[0]['nodeCount']);
     }
 
@@ -132,6 +132,19 @@ final class ApiTest extends TestCase
         self::assertGreaterThan(1_000, $header['count']);
         $lastColumn = $header['columns'][count($header['columns']) - 1];
         self::assertGreaterThanOrEqual($lastColumn['offset'] + $header['count'], strlen($body));
+    }
+
+    public function testDiffsTwoOpenSnapshots(): void
+    {
+        /** @var array{handlesAvailable: bool, newObjects: list<int>, newObjectsByClass: list<array{class: string, count: int}>, growth: list<array{node: int, path: list<string>, delta: int}>} $diff */
+        $diff = self::getJson('/api/diff?from=3&to=1');
+
+        self::assertTrue($diff['handlesAvailable']);
+        self::assertSame([['class' => 'Product', 'count' => 1_000]], $diff['newObjectsByClass']);
+        self::assertCount(1_000, $diff['newObjects']);
+        self::assertSame(['class_table', 'productcache', 'static_properties', 'items'], $diff['growth'][0]['path'] ?? null);
+        self::assertSame(404, self::request('GET', '/api/diff?from=1&to=99')[0]);
+        self::assertSame(400, self::request('GET', '/api/diff?from=x&to=1')[0]);
     }
 
     public function testRejectsForeignHostsAndBadRequests(): void

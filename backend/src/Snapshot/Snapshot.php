@@ -133,6 +133,33 @@ final class Snapshot
         );
     }
 
+    /**
+     * Follows tree edges by name from the roots, the inverse of pathToRoot():
+     * finds what sits at the same place in another snapshot.
+     *
+     * @param list<string> $links root first
+     */
+    public function findByPath(array $links): ?int
+    {
+        $candidates = $this->substrate->getRoots();
+        $found = null;
+        foreach ($links as $link) {
+            $found = null;
+            foreach ($candidates as $candidate) {
+                if ($this->substrate->getTreeLinkName($candidate) === $link) {
+                    $found = $candidate;
+                    break;
+                }
+            }
+            if ($found === null) {
+                return null;
+            }
+            $candidates = $this->substrate->getChildren($found);
+        }
+
+        return $found;
+    }
+
     /** @return list<ClassUsage> classes ranked by total shallow size */
     public function classRanking(): array
     {

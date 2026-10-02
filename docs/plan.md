@@ -106,6 +106,10 @@ Exit criteria: for each single-snapshot fixture, the leak can be found from the 
 
 ## Phase 6 - Snapshot diff
 
+Status: done.
+`Zendscape\Diff` reports new objects (handle and class), class changes, and growing structures: the largest arrays, objects and `objects_store` of the later snapshot, matched by path in the earlier one, keeping the most specific structure that explains the growth.
+On every fixture pair the leaking structure comes first, and on the 2.7M-node pair the diff takes 3.8s and finds `Leak::$items`.
+
 - Load two snapshots of a session and pick T0 and T1.
 - Match objects with the identity strategy settled in phase 0.
 - Highlight new objects individually in the scene.
