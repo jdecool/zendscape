@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatBytes, humanizeRegion, humanizeType } from './format';
+import { formatBytes, humanizeLabel, humanizeRegion, humanizeType } from './format';
 
 describe('formatBytes', () => {
   it('picks the largest unit below 1024', () => {
@@ -21,5 +21,13 @@ describe('humanizeRegion', () => {
   it('names reli regions', () => {
     expect(humanizeRegion('zend_mm_heap')).toBe('PHP heap');
     expect(humanizeRegion('something_new')).toBe('something_new');
+  });
+});
+
+describe('humanizeLabel', () => {
+  it('humanizes the type prefix and keeps the rest verbatim', () => {
+    expect(humanizeLabel('ObjectContext: App\\Product')).toBe('Object: App\\Product');
+    expect(humanizeLabel('StringContext = "ObjectContext"')).toBe('String = "ObjectContext"');
+    expect(humanizeLabel('main:12')).toBe('main:12');
   });
 });

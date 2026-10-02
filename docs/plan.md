@@ -94,6 +94,9 @@ Exit criteria: the largest fixture renders smoothly (60 fps target on a laptop),
 
 ## Phase 5 - Inspection
 
+Status: done.
+Each fixture's leak is found from the UI: through Classes (`Product`, `TreeNode`, `OrderHandler`, `AuditListener`), an instance, then "Why is it still alive?", which shows the retention paths, or says the object is uncollected cycle garbage.
+
 - Side panels: search, node detail, references in and out with adjustable depth, class ranking, top retained.
 - Retention paths and path to root drawn as luminous bundles in the scene, only for the current selection.
 - Selecting in a panel flies the camera to the value, selecting in the scene updates the panels.

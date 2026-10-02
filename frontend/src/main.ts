@@ -1,6 +1,7 @@
 import './style.css';
-import { api, type Allocations, type SnapshotInfo } from './api';
-import { formatBytes, humanizeRegion, humanizeType } from './format';
+import { api, setRevealStrings, type Allocations, type SnapshotInfo } from './api';
+import { formatBytes, humanizeType } from './format';
+import { Inspector } from './inspector';
 import { HeapScene, type ColorMode, type LegendEntry } from './scene';
 
 function element<T extends HTMLElement>(id: string, type: new () => T): T {
@@ -14,7 +15,7 @@ function element<T extends HTMLElement>(id: string, type: new () => T): T {
 const snapshotSelect = element('snapshot', HTMLSelectElement);
 const upload = element('upload', HTMLInputElement);
 const status = element('status', HTMLDivElement);
-const selection = element('selection', HTMLElement);
+const reveal = element('reveal', HTMLInputElement);
 const legend = element('legend', HTMLOListElement);
 const legendTitle = element('legend-title', HTMLHeadingElement);
 const hint = element('hint', HTMLParagraphElement);
@@ -24,13 +25,35 @@ let colorMode: ColorMode = 'type';
 
 const scene = new HeapScene(element('scene', HTMLCanvasElement), {
   onSelect: (allocation) => {
-    void showSelection(allocation);
+    if (allocation === null || !current) {
+      scene.select(null);
+      inspector.deselect();
+      return;
+    }
+    inspector.inspect(current.data.node[allocation] ?? 0);
   },
   onControlsChange: (mode) => {
     hint.textContent =
       mode === 'fly'
         ? 'Flying: W A S D to move, R and F to rise and sink, drag to look. Press Esc to orbit again.'
         : 'Drag to orbit, right-drag to pan, scroll to zoom. Click a page to fly in, click an allocation to inspect it. Press F to fly.';
+  },
+});
+
+// The inspector floats over the right of the canvas; on narrow screens it becomes a bottom sheet instead.
+const inspectorPanel = document.querySelector<HTMLElement>('.inspector');
+if (inspectorPanel) {
+  new ResizeObserver(() => {
+    const bounds = inspectorPanel.getBoundingClientRect();
+    scene.setRightInset(bounds.top < window.innerHeight / 3 ? window.innerWidth - bounds.left : 0);
+  }).observe(inspectorPanel);
+}
+
+const inspector = new Inspector(element('inspector', HTMLDivElement), document.querySelector('.tabs') ?? document.body, {
+  snapshot: () => current?.snapshot ?? null,
+  focus: (node, fly) => (fly ? scene.focus(node) : (scene.select(node), scene.hasNode(node))),
+  showPaths: (paths) => {
+    scene.showPaths(paths);
   },
 });
 
@@ -55,60 +78,13 @@ function renderLegend(entries: LegendEntry[]): void {
   );
 }
 
-async function showSelection(allocation: number | null): Promise<void> {
-  if (allocation === null || !current) {
-    selection.hidden = true;
-    scene.select(null);
-    return;
-  }
-  const { snapshot, data } = current;
-  const node = data.node[allocation] ?? 0;
-  scene.select(node);
-
-  const block = data.blocks[data.block[allocation] ?? 0];
-  const address = block ? `0x${(BigInt(block.base) + BigInt(data.offset[allocation] ?? 0)).toString(16)}` : '?';
-  const detail = await api.node(snapshot, node);
-  if (current.snapshot !== snapshot) {
-    return;
-  }
-
-  const rows: [string, string, string?][] = [
-    ...(detail.class === null ? [] : [['Type', humanizeType(detail.type)] as [string, string]]),
-    ['Size', formatBytes(data.size[allocation] ?? 0)],
-    ['Address', address, 'address'],
-    ['Region', humanizeRegion(data.regions[data.region[allocation] ?? 0] ?? '?')],
-    ['Retains', formatBytes(detail.retainedSize)],
-  ];
-  if (detail.refcount !== null) {
-    rows.push(['Refcount', String(detail.refcount)]);
-  }
-  if (detail.sourceLocation) {
-    rows.push(['Defined in', detail.sourceLocation, 'address']);
-  }
-  const title = document.createElement('h2');
-  title.textContent = detail.class ?? humanizeType(detail.type);
-  const list = document.createElement('dl');
-  for (const [term, value, className] of rows) {
-    const dt = document.createElement('dt');
-    dt.textContent = term;
-    const dd = document.createElement('dd');
-    dd.textContent = value;
-    if (className) {
-      dd.className = className;
-    }
-    list.append(dt, dd);
-  }
-  selection.replaceChildren(title, list);
-  selection.hidden = false;
-}
-
 async function open(snapshot: number): Promise<void> {
   status.textContent = 'Loading allocations…';
-  selection.hidden = true;
   try {
     const data = await api.allocations(snapshot);
     current = { snapshot, data };
     renderLegend(scene.load(data, colorMode));
+    inspector.open({ kind: 'classes' }, true);
     status.textContent = data.count === 0 ? 'This snapshot has no allocations in the PHP heap.' : '';
   } catch (error) {
     status.textContent = `Could not load the snapshot: ${error instanceof Error ? error.message : String(error)}`;
@@ -149,6 +125,11 @@ upload.addEventListener('change', () => {
       upload.value = '';
     }
   })();
+});
+
+reveal.addEventListener('change', () => {
+  setRevealStrings(reveal.checked);
+  inspector.render();
 });
 
 for (const radio of document.querySelectorAll<HTMLInputElement>('input[name="color"]')) {

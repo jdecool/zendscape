@@ -43,6 +43,33 @@ export interface NodeDetail {
   sourceLocation: string | null;
 }
 
+export interface NodeSummary {
+  id: number;
+  type: string;
+  label: string;
+  shallowSize: number;
+  retainedSize: number;
+}
+
+/** One step of a path: the edge named linkName leads into node. */
+export interface PathStep {
+  node: NodeSummary;
+  linkName: string;
+  strong: boolean;
+}
+
+export interface ClassUsage {
+  class: string;
+  count: number;
+  totalShallowSize: number;
+}
+
+export interface Neighbourhood {
+  nodes: NodeSummary[];
+  edges: { from: number; to: number; name: string; strong: boolean }[];
+  truncated: boolean;
+}
+
 interface Header {
   count: number;
   blocks: Block[];
@@ -83,14 +110,27 @@ export function decodeAllocations(buffer: ArrayBuffer): Allocations {
   };
 }
 
+/** Whether string values are revealed (ADR 0007): masked unless the user asks. */
+let revealStrings = false;
+
+export function setRevealStrings(reveal: boolean): void {
+  revealStrings = reveal;
+}
+
 async function get(path: string): Promise<Response> {
-  const response = await fetch(path);
+  const response = await fetch(revealStrings ? `${path}${path.includes('?') ? '&' : '?'}reveal=strings` : path);
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { error?: string } | null;
     throw new Error(body?.error ?? `${path} answered ${String(response.status)}`);
   }
   return response;
 }
+
+async function json<T>(path: string): Promise<T> {
+  return (await (await get(path)).json()) as T;
+}
+
+const snapshotPath = (snapshot: number): string => `/api/snapshots/${String(snapshot)}`;
 
 export const api = {
   async snapshots(): Promise<SnapshotInfo[]> {
@@ -99,9 +139,16 @@ export const api = {
   async allocations(snapshot: number): Promise<Allocations> {
     return decodeAllocations(await (await get(`/api/snapshots/${String(snapshot)}/allocations`)).arrayBuffer());
   },
-  async node(snapshot: number, node: number): Promise<NodeDetail> {
-    return (await (await get(`/api/snapshots/${String(snapshot)}/nodes/${String(node)}`)).json()) as NodeDetail;
-  },
+  node: (snapshot: number, node: number) => json<NodeDetail>(`${snapshotPath(snapshot)}/nodes/${String(node)}`),
+  classes: (snapshot: number) => json<ClassUsage[]>(`${snapshotPath(snapshot)}/classes`),
+  instances: (snapshot: number, className: string) =>
+    json<NodeSummary[]>(`${snapshotPath(snapshot)}/classes/${encodeURIComponent(className)}/instances?limit=200`),
+  topRetained: (snapshot: number) => json<NodeSummary[]>(`${snapshotPath(snapshot)}/top-retained?limit=200`),
+  search: (snapshot: number, query: string) => json<NodeSummary[]>(`${snapshotPath(snapshot)}/search?q=${encodeURIComponent(query)}&limit=200`),
+  byAddress: (snapshot: number, address: string) => json<{ node: number | null }>(`${snapshotPath(snapshot)}/address/${address}`),
+  retentionPaths: (snapshot: number, node: number) => json<PathStep[][]>(`${snapshotPath(snapshot)}/nodes/${String(node)}/retention-paths?limit=5`),
+  references: (snapshot: number, node: number, direction: 'in' | 'out', depth: number) =>
+    json<Neighbourhood>(`${snapshotPath(snapshot)}/nodes/${String(node)}/references?direction=${direction}&depth=${String(depth)}&limit=300`),
   async upload(file: File): Promise<{ id: number; name: string }> {
     const response = await fetch('/api/snapshots', {
       method: 'POST',

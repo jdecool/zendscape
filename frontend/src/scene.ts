@@ -24,6 +24,7 @@ const colors = {
   emptyPage: new THREE.Color('#33376a'),
   unclassified: new THREE.Color('#6d71a3'),
   selection: new THREE.Color('#ffd15c'),
+  retention: new THREE.Color('#ff9e5c'),
 };
 
 /** Below this distance from a block, its allocations replace its page bars (ADR 0004). */
@@ -61,7 +62,18 @@ export class HeapScene {
   private blocks: BlockMeshes[] = [];
   private data: Allocations | null = null;
   private highlight: THREE.InstancedMesh | null = null;
+  private pathArcs: THREE.Mesh<THREE.TubeGeometry>[] = [];
+  private readonly pathMaterial = new THREE.MeshBasicMaterial({
+    color: colors.retention,
+    transparent: true,
+    opacity: 0.9,
+    depthWrite: false,
+  });
+  /** node id => its first allocation, to find a node picked from a list in the scene */
+  private firstAllocation = new Map<number, number>();
   private pointerDown: { x: number; y: number } | null = null;
+  /** Pixels covered by the inspector on the right, kept out of the visual center. */
+  private rightInset = 0;
   private flight: { from: THREE.Vector3; to: THREE.Vector3; fromTarget: THREE.Vector3; toTarget: THREE.Vector3; t: number } | null = null;
 
   constructor(
@@ -122,6 +134,10 @@ export class HeapScene {
     const perBlock = placements.map(() => [] as number[]);
     for (let i = 0; i < data.count; i++) {
       perBlock[data.block[i] ?? 0]?.push(i);
+      const node = data.node[i] ?? 0;
+      if (!this.firstAllocation.has(node)) {
+        this.firstAllocation.set(node, i);
+      }
     }
 
     const box = new THREE.BoxGeometry(1, 1, 1);
@@ -284,8 +300,7 @@ export class HeapScene {
         continue;
       }
       const height = allocationHeight(data.size[i] ?? 0) + 0.04;
-      const first = allocationRects(data.offset[i] ?? 0, data.size[i] ?? 0)[0];
-      beamAt ??= first ? new THREE.Vector3(placement.x + first.x + first.width / 2, height, placement.z + first.z + first.depth / 2) : null;
+      beamAt ??= this.allocationTop(i);
       for (const rect of allocationRects(data.offset[i] ?? 0, data.size[i] ?? 0)) {
         const pad = 0.02;
         matrices.push(
@@ -324,6 +339,63 @@ export class HeapScene {
     }
   }
 
+  /** Shifts the projection so what the camera looks at sits centered in the area left uncovered. */
+  setRightInset(pixels: number): void {
+    this.rightInset = pixels;
+    this.resize();
+  }
+
+  /** True when the node owns memory drawn in the scene, i.e. it can be selected and flown to. */
+  hasNode(node: number): boolean {
+    return this.firstAllocation.has(node);
+  }
+
+  /** Selects a node and flies to it; returns false when the node has nothing drawn in the scene. */
+  focus(node: number): boolean {
+    this.select(node);
+    const allocation = this.firstAllocation.get(node);
+    const top = allocation === undefined ? null : this.allocationTop(allocation);
+    if (!top) {
+      return false;
+    }
+    this.flyTo(top, 9);
+    return true;
+  }
+
+  /**
+   * Draws each retention path (node ids from root to target) as arcs between
+   * the allocations of consecutive nodes. Nodes without memory of their own
+   * (array elements, property lists) are skipped, so an arc spans the hop from
+   * one real allocation to the next.
+   */
+  showPaths(paths: readonly (readonly number[])[]): void {
+    for (const arc of this.pathArcs) {
+      arc.removeFromParent();
+      arc.geometry.dispose();
+    }
+    this.pathArcs = [];
+    for (const path of paths) {
+      const stops = path
+        .map((node) => this.firstAllocation.get(node))
+        .filter((allocation): allocation is number => allocation !== undefined)
+        .map((allocation) => this.allocationTop(allocation))
+        .filter((point): point is THREE.Vector3 => point !== null);
+      for (let k = 1; k < stops.length; k++) {
+        const from = stops[k - 1];
+        const to = stops[k];
+        if (!from || !to || from.distanceTo(to) < 0.05) {
+          continue;
+        }
+        const lift = 0.6 + Math.min(from.distanceTo(to) * 0.35, 6);
+        const middle = from.clone().lerp(to, 0.5).setY(Math.max(from.y, to.y) + lift);
+        const curve = new THREE.QuadraticBezierCurve3(from, middle, to);
+        const arc = new THREE.Mesh(new THREE.TubeGeometry(curve, 32, 0.03 + lift * 0.004, 6), this.pathMaterial);
+        this.world.add(arc);
+        this.pathArcs.push(arc);
+      }
+    }
+  }
+
   toggleControls(): void {
     this.controlsMode = this.controlsMode === 'orbit' ? 'fly' : 'orbit';
     this.orbit.enabled = this.controlsMode === 'orbit';
@@ -335,6 +407,21 @@ export class HeapScene {
       this.orbit.update();
     }
     this.events.onControlsChange(this.controlsMode);
+  }
+
+  /** Center of the top face of an allocation's first rectangle, in world space. */
+  private allocationTop(allocation: number): THREE.Vector3 | null {
+    const data = this.data;
+    const placement = data ? this.blocks[data.block[allocation] ?? 0]?.placement : undefined;
+    const rect = data ? allocationRects(data.offset[allocation] ?? 0, data.size[allocation] ?? 0)[0] : undefined;
+    if (!data || !placement || !rect) {
+      return null;
+    }
+    return new THREE.Vector3(
+      placement.x + rect.x + rect.width / 2,
+      allocationHeight(data.size[allocation] ?? 0) + 0.04,
+      placement.z + rect.z + rect.depth / 2,
+    );
   }
 
   private pick(clientX: number, clientY: number): void {
@@ -438,11 +525,18 @@ export class HeapScene {
     }
     this.renderer.setSize(width, height, false);
     this.camera.aspect = width / height;
+    if (this.rightInset > 0 && this.rightInset < width / 2) {
+      this.camera.setViewOffset(width, height, this.rightInset / 2, 0, width, height);
+    } else {
+      this.camera.clearViewOffset();
+    }
     this.camera.updateProjectionMatrix();
   }
 
   private clear(): void {
     this.select(null);
+    this.showPaths([]);
+    this.firstAllocation.clear();
     this.world.clear();
     for (const resource of this.disposables) {
       resource.dispose();

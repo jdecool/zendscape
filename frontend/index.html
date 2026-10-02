@@ -18,6 +18,10 @@
         Open snapshot
         <input id="upload" type="file" accept=".rmem" class="visually-hidden" />
       </label>
+      <label class="toggle">
+        <input id="reveal" type="checkbox" />
+        <span>Show string values</span>
+      </label>
       <div class="segmented" role="radiogroup" aria-label="Color allocations by">
         <span class="segmented-label">Color by</span>
         <label><input type="radio" name="color" value="type" checked /> <span>Type</span></label>
@@ -27,7 +31,14 @@
 
     <div id="status" class="status" role="status"></div>
 
-    <section id="selection" class="card selection" aria-live="polite" hidden></section>
+    <aside class="inspector" aria-label="Inspector">
+      <nav class="tabs" aria-label="Explore">
+        <button type="button" data-view="classes">Classes</button>
+        <button type="button" data-view="largest">Largest</button>
+        <button type="button" data-view="search">Search</button>
+      </nav>
+      <div id="inspector" class="inspector-body" aria-live="polite"></div>
+    </aside>
 
     <aside class="card legend" aria-label="Legend">
       <h2 id="legend-title">Bytes by type</h2>

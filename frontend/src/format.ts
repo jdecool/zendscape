@@ -26,3 +26,8 @@ const regionNames: Record<string, string> = {
 export function humanizeRegion(region: string): string {
   return regionNames[region] ?? region;
 }
+
+/** Labels start with the node type ("ObjectContext: Foo", "StringContext = \"bar\""); humanize that prefix only. */
+export function humanizeLabel(label: string): string {
+  return label.replace(/^[A-Z]\w*Context\b/, (type) => humanizeType(type));
+}
