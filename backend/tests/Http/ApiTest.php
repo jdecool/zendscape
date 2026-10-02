@@ -150,6 +150,8 @@ final class ApiTest extends TestCase
     public function testRejectsForeignHostsAndBadRequests(): void
     {
         self::assertSame(403, self::request('GET', '/api/snapshots', ['Host: attacker.example'])[0]);
+        self::assertSame(403, self::request('GET', '/api/snapshots', ['Host: 127.0.0.1.attacker.example:80'])[0]);
+        self::assertSame(200, self::request('GET', '/api/snapshots', ['Host: localhost:8080'])[0], 'Docker may publish on another port');
         self::assertSame(404, self::request('GET', '/api/snapshots/99')[0]);
         self::assertSame(404, self::request('GET', '/api/snapshots/1/nodes/99999999')[0]);
         self::assertSame(404, self::request('GET', '/api/nope')[0]);

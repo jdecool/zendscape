@@ -1,6 +1,7 @@
-/backend/vendor/
-/backend/public/
-/backend/.php-cs-fixer.cache
-/backend/.phpunit.cache/
+/vendor/
+/.php-cs-fixer.cache
+/.phpunit.cache/
 /frontend/node_modules/
-/backend/.phpunit.result.cache
+/.phpunit.result.cache
+/frontend/test-results/
+/frontend/playwright-report/

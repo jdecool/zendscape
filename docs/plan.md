@@ -119,6 +119,11 @@ Exit criteria: for each `t0`/`t1` fixture pair, the growing structure is highlig
 
 ## Phase 7 - Packaging and end-to-end
 
+Status: done.
+`composer.json` moved to the repository root so the package installs with `composer global require`; the built frontend is committed in `backend/public` and CI checks it matches the sources.
+The Docker image is Alpine-based (195 MB): exploring only reads `.rmem` files, so musl is enough.
+The Host check accepts loopback names on any port, so Docker can publish the server on another port.
+
 - Composer package embedding the prebuilt frontend.
 - Docker image running `zendscape serve` with a mounted snapshot directory.
 - Playwright end-to-end test: start the server on a fixture, open the UI, find the leak, run a diff.

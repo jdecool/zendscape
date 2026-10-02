@@ -8,9 +8,6 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
     steps:
       - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
@@ -38,3 +35,45 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+      # The built frontend is committed so the Composer package ships it (ADR 0003).
+      - name: Check the committed build matches the sources
+        run: git diff --exit-code -- ../backend/public || (echo "Run npm run build in frontend/ and commit backend/public." && exit 1)
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: ffi, pcntl
+          tools: composer
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: composer install --no-interaction --no-progress --no-dev
+      - run: npm ci
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npm run e2e
+        working-directory: frontend
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: frontend/test-results
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build -t zendscape .
+      - name: Serve a fixture from the image
+        run: |
+          docker run -d --name zendscape -p 127.0.0.1:7777:7777 -v "$PWD/fixtures:/snapshots:ro" zendscape serve /snapshots/static-cache.t1.rmem
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:7777/api/snapshots && exit 0; sleep 1; done
+          docker logs zendscape
+          exit 1

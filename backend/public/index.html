@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Zendscape</title>
+    <script type="module" crossorigin src="/assets/index-DZbLUpcN.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-VMwXYeWz.css">
+  </head>
+  <body>
+    <canvas id="scene" aria-label="3D view of the PHP heap"></canvas>
+
+    <header class="toolbar">
+      <h1 class="brand">Zendscape</h1>
+      <label class="field">
+        <span class="visually-hidden">Snapshot</span>
+        <select id="snapshot" disabled></select>
+      </label>
+      <label class="field compare">
+        <span>Compare with</span>
+        <select id="baseline" disabled></select>
+      </label>
+      <label class="button">
+        Open snapshot
+        <input id="upload" type="file" accept=".rmem" class="visually-hidden" />
+      </label>
+      <label class="toggle">
+        <input id="reveal" type="checkbox" />
+        <span>Show strings</span>
+      </label>
+    </header>
+
+    <div id="status" class="status" role="status"></div>
+
+    <aside class="inspector" aria-label="Inspector">
+      <nav class="tabs" aria-label="Explore">
+        <button type="button" data-view="classes">Classes</button>
+        <button type="button" data-view="largest">Largest</button>
+        <button type="button" data-view="search">Search</button>
+        <button type="button" data-view="changes">Changes</button>
+      </nav>
+      <div id="inspector" class="inspector-body" aria-live="polite"></div>
+    </aside>
+
+    <aside class="card legend" aria-label="Legend">
+      <div class="segmented small" role="radiogroup" aria-label="Color allocations by">
+        <label><input type="radio" name="color" value="type" checked /> <span>Type</span></label>
+        <label><input type="radio" name="color" value="class" /> <span>Class</span></label>
+        <label><input type="radio" name="color" value="changes" disabled /> <span>Changes</span></label>
+      </div>
+      <h2 id="legend-title">Bytes by type</h2>
+      <ol id="legend"></ol>
+    </aside>
+
+    <p class="hint" id="hint">Drag to orbit, right-drag to pan, scroll to zoom. Click a page to fly in, click an allocation to inspect it. Press F to fly.</p>
+
+  </body>
+</html>

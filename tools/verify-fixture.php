@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 // Runs inside the reli container, where reli is installed under /app, or
 // locally against the copy of reli the backend depends on.
-require is_file('/app/vendor/autoload.php') ? '/app/vendor/autoload.php' : __DIR__ . '/../backend/vendor/autoload.php';
+require is_file('/app/vendor/autoload.php') ? '/app/vendor/autoload.php' : __DIR__ . '/../vendor/autoload.php';
 
 use Reli\Inspector\Output\MemoryOutput\BinaryFormat\Reader;
 use Reli\Inspector\Output\MemoryOutput\Report\Substrate\GraphSubstrate;

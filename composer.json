@@ -4,7 +4,7 @@
     "type": "project",
     "license": "MIT",
     "bin": [
-        "bin/zendscape"
+        "backend/bin/zendscape"
     ],
     "require": {
         "php": "^8.4.1",
@@ -15,12 +15,12 @@
     },
     "autoload": {
         "psr-4": {
-            "Zendscape\\": "src/"
+            "Zendscape\\": "backend/src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Zendscape\\Tests\\": "tests/"
+            "Zendscape\\Tests\\": "backend/tests/"
         }
     },
     "config": {
@@ -31,11 +31,11 @@
     },
     "scripts": {
         "lint": [
-            "php-cs-fixer check --diff",
-            "phpstan analyse"
+            "php-cs-fixer check --diff --config=backend/.php-cs-fixer.dist.php",
+            "phpstan analyse --configuration=backend/phpstan.neon"
         ],
-        "fix": "php-cs-fixer fix",
-        "test": "phpunit"
+        "fix": "php-cs-fixer fix --config=backend/.php-cs-fixer.dist.php",
+        "test": "phpunit --configuration=backend/phpunit.xml"
     },
     "require-dev": {
         "friendsofphp/php-cs-fixer": "^3.95",

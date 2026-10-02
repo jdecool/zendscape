@@ -6,7 +6,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "lint": "tsc --noEmit && eslint .",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@fontsource/atkinson-hyperlegible-mono": "^5.3.0",

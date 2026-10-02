@@ -1,0 +1,6 @@
+*
+!composer.json
+!composer.lock
+!backend/bin
+!backend/src
+!backend/public

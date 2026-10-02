@@ -15,8 +15,10 @@ Heapscape addresses this with loopback-only binding, no external resources, temp
 ## Decision
 
 - The server binds to 127.0.0.1 only.
-- Requests whose `Host` header is not `127.0.0.1:<port>` or `localhost:<port>` are rejected.
+  The Docker image is the one exception: it listens on all interfaces inside the container, and the documented `docker run` publishes the port on the host's loopback only.
+- Requests whose `Host` header names anything but `127.0.0.1`, `localhost` or `[::1]` are rejected.
   Binding to loopback alone does not stop DNS rebinding, where a web page resolves its own domain to 127.0.0.1 and reads the API as same-origin.
+  The port is not checked, so a container port can be published on another host port.
 - No CORS headers are ever sent.
   Uploads use `application/octet-stream` and closing a snapshot uses `DELETE`, both of which require a preflight that foreign origins cannot pass.
 - No CDN, no telemetry, no outbound network calls.

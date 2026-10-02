@@ -12,12 +12,16 @@ use Zendscape\Http\Api;
 use Zendscape\Session;
 use Zendscape\Snapshot\Snapshot;
 
-require __DIR__ . '/../vendor/autoload.php';
+// Composer sets this when the package is installed as a dependency (composer global require).
+require $_composer_autoload_path ?? __DIR__ . '/../../vendor/autoload.php';
 
 const USAGE = <<<'TXT'
-    Usage: zendscape serve [--port=7777] [--memory-limit=-1] [snapshot.rmem ...]
+    Usage: zendscape serve [--port=7777] [--host=127.0.0.1] [--memory-limit=-1] [snapshot.rmem ...]
 
     Serves the Zendscape explorer on http://127.0.0.1:<port>/ with the given snapshots open.
+
+    --host defaults to $ZENDSCAPE_HOST, then 127.0.0.1. Only change it inside a container
+    whose port is published on the host's loopback: snapshots contain secrets.
 
     TXT;
 
@@ -32,11 +36,12 @@ foreach (array_slice($argv, 1) as $arg) {
     }
 }
 $command = array_shift($positional);
-if (isset($options['help']) || $command !== 'serve' || array_diff(array_keys($options), ['port', 'memory-limit']) !== []) {
+if (isset($options['help']) || $command !== 'serve' || array_diff(array_keys($options), ['port', 'host', 'memory-limit']) !== []) {
     fwrite(STDERR, USAGE);
     exit(isset($options['help']) || $command === null ? 0 : 1);
 }
 $port = (int) ($options['port'] ?? 7777);
+$host = $options['host'] ?? (getenv('ZENDSCAPE_HOST') ?: '127.0.0.1');
 // Large snapshots need gigabytes (docs/spike-0.md); PHP's 128M default cannot even open one.
 ini_set('memory_limit', $options['memory-limit'] ?? '-1');
 
@@ -71,12 +76,13 @@ $server = SocketHttpServer::createForDirectAccess(
     // Snapshots are uploaded whole; reli's own dumps of large heaps run into hundreds of megabytes.
     httpDriverFactory: new DefaultHttpDriverFactory($logger, bodySizeLimit: 4 * 1024 ** 3),
 );
-$server->expose("127.0.0.1:{$port}");
+$server->expose("{$host}:{$port}");
 $api = new Api($session, __DIR__ . '/../public', $uploadDir);
 $server->start($api, new DefaultErrorHandler());
 
 // Read back from the socket: --port=0 asks the system for any free port.
-echo 'Zendscape listening on http://', $server->getServers()[0]->getAddress(), "/\n";
+$address = (string) $server->getServers()[0]->getAddress();
+echo 'Zendscape listening on http://127.0.0.1:', substr($address, strrpos($address, ':') + 1), "/\n";
 
 Amp\trapSignal([SIGINT, SIGTERM]);
 

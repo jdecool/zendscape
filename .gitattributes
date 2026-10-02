@@ -1,1 +1,15 @@
 *.rmem binary
+
+# Kept out of the Composer package: it ships the backend and the built frontend only.
+/.github export-ignore
+/docs export-ignore
+/fixtures export-ignore
+/frontend export-ignore
+/scenarios export-ignore
+/tools export-ignore
+/backend/tests export-ignore
+/backend/phpstan.neon export-ignore
+/backend/phpunit.xml export-ignore
+/backend/.php-cs-fixer.dist.php export-ignore
+/Dockerfile export-ignore
+/.dockerignore export-ignore

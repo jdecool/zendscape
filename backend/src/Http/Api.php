@@ -44,11 +44,11 @@ final class Api implements RequestHandler
 
     public function handleRequest(Request $request): Response
     {
-        // A loopback server is reachable from any web page through DNS rebinding;
-        // checking Host keeps foreign origins away from the snapshots.
-        $local = (string) $request->getClient()->getLocalAddress();
-        $port = substr($local, strrpos($local, ':') + 1);
-        if (!in_array($request->getHeader('host'), ["127.0.0.1:{$port}", "localhost:{$port}"], true)) {
+        // A loopback server is reachable from any web page through DNS rebinding, where the
+        // page's own domain resolves to 127.0.0.1: only a loopback name in Host is trusted.
+        // The port is not checked so Docker can publish the server on another one.
+        $hostname = preg_replace('/:\d+$/', '', $request->getHeader('host') ?? '');
+        if (!in_array($hostname, ['127.0.0.1', 'localhost', '[::1]'], true)) {
             return self::error(HttpStatus::FORBIDDEN, 'Unexpected Host header');
         }
 
@@ -230,7 +230,7 @@ final class Api implements RequestHandler
             return self::error(HttpStatus::NOT_FOUND, 'Not found');
         }
 
-        $types = ['html' => 'text/html; charset=utf-8', 'js' => 'text/javascript', 'css' => 'text/css', 'svg' => 'image/svg+xml', 'json' => 'application/json'];
+        $types = ['html' => 'text/html; charset=utf-8', 'js' => 'text/javascript', 'css' => 'text/css', 'svg' => 'image/svg+xml', 'json' => 'application/json', 'woff2' => 'font/woff2', 'woff' => 'font/woff'];
 
         return new Response(
             HttpStatus::OK,
