@@ -12,5 +12,7 @@ export default defineConfig({
     // The backend serves these files from the Composer package (ADR 0003).
     outDir: '../backend/public',
     emptyOutDir: true,
+    // Three.js alone exceeds the default 500 kB; the bundle is served from loopback, so size is not a latency concern.
+    chunkSizeWarningLimit: 1000,
   },
 });

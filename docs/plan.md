@@ -75,6 +75,14 @@ Exit criteria: API tests against fixtures, binary payload layout documented next
 
 ## Phase 4 - 3D scene
 
+Status: done.
+Measured at 60 fps on a 1.25M-allocation snapshot (72 blocks), from the overview down to byte level.
+Changes from the original plan:
+
+- Two levels of detail per block instead of three: page bars (height is occupancy, color the dominant category) from afar, allocations byte for byte up close; the page grid is always visible.
+- Picking uses Three.js raycasting on the visible meshes of each block rather than an ID buffer, fast enough at this scale.
+- Clicking a page bar flies the camera to that page; clicking an allocation selects its node and marks it with a probe beam.
+
 - Three.js scene with chunks as blocks, pages as grids, values as `InstancedMesh` instances.
 - Level of detail by camera distance: chunk occupancy, then pages, then values.
 - Huge allocations as separate blocks.

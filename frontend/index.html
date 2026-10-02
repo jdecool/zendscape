@@ -6,7 +6,36 @@
     <title>Zendscape</title>
   </head>
   <body>
-    <div id="app"></div>
+    <canvas id="scene" aria-label="3D view of the PHP heap"></canvas>
+
+    <header class="toolbar">
+      <h1 class="brand">Zendscape</h1>
+      <label class="field">
+        <span class="visually-hidden">Snapshot</span>
+        <select id="snapshot" disabled></select>
+      </label>
+      <label class="button">
+        Open snapshot
+        <input id="upload" type="file" accept=".rmem" class="visually-hidden" />
+      </label>
+      <div class="segmented" role="radiogroup" aria-label="Color allocations by">
+        <span class="segmented-label">Color by</span>
+        <label><input type="radio" name="color" value="type" checked /> <span>Type</span></label>
+        <label><input type="radio" name="color" value="class" /> <span>Class</span></label>
+      </div>
+    </header>
+
+    <div id="status" class="status" role="status"></div>
+
+    <section id="selection" class="card selection" aria-live="polite" hidden></section>
+
+    <aside class="card legend" aria-label="Legend">
+      <h2 id="legend-title">Bytes by type</h2>
+      <ol id="legend"></ol>
+    </aside>
+
+    <p class="hint" id="hint">Drag to orbit, right-drag to pan, scroll to zoom. Click a page to fly in, click an allocation to inspect it. Press F to fly.</p>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
