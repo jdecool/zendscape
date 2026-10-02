@@ -1,0 +1,38 @@
+{
+    "name": "zendscape/zendscape",
+    "description": "Interactive 3D explorer for PHP memory snapshots",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": "^8.4.1",
+        "ext-ffi": "*",
+        "ext-pcntl": "*",
+        "reliforp/reli-prof": "0.12.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Zendscape\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Zendscape\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "platform": {
+            "php": "8.4.1"
+        }
+    },
+    "scripts": {
+        "lint": ["php-cs-fixer check --diff", "phpstan analyse"],
+        "fix": "php-cs-fixer fix",
+        "test": "phpunit"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.95",
+        "phpstan/phpstan": "^2.2",
+        "phpunit/phpunit": "^13.4"
+    }
+}

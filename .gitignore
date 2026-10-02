@@ -1,0 +1,6 @@
+/backend/vendor/
+/backend/public/
+/backend/.php-cs-fixer.cache
+/backend/.phpunit.cache/
+/frontend/node_modules/
+/backend/.phpunit.result.cache
