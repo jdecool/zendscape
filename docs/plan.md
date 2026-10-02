@@ -55,6 +55,14 @@ Exit criteria: a PHP test can open each fixture and find its leak through the ad
 
 ## Phase 3 - HTTP API
 
+Status: done.
+Changes from the original plan:
+
+- The bulk payload carries allocations, not nodes ([ADR 0004](adr/0004-physical-address-scene-layout.md), [ADR 0005](adr/0005-columnar-binary-transport.md)).
+- No bulk edge endpoint: bundles are only drawn for the selection, from the references and retention paths endpoints.
+- The server also rejects foreign `Host` headers against DNS rebinding ([ADR 0007](adr/0007-security-and-privacy-defaults.md)).
+- Loading a large snapshot blocks the server for seconds; there is no progress reporting yet.
+
 - amphp HTTP server bound to 127.0.0.1 ([ADR 0007](adr/0007-security-and-privacy-defaults.md)).
 - CLI entry point: `zendscape serve [snapshot.rmem ...]` opens the given files in a session and prints the URL.
 - Browser upload of `.rmem` files into temporary storage, deleted on close and on shutdown.

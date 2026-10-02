@@ -7,29 +7,42 @@ namespace Zendscape;
 use Zendscape\Snapshot\Snapshot;
 
 /**
- * Ordered snapshots explored together (ADR 0002). Order is capture order,
- * which is what a diff between two snapshots relies on.
+ * Snapshots explored together (ADR 0002), keyed by a stable id. Ids grow
+ * with insertion, so they also give capture order, which diffing relies on.
  */
 final class Session
 {
-    /** @var list<Snapshot> */
-    private array $snapshots = [];
+    /** @var array<int, array{name: string, snapshot: Snapshot}> */
+    private array $entries = [];
 
-    public function add(Snapshot $snapshot): int
+    private int $nextId = 1;
+
+    public function add(string $name, Snapshot $snapshot): int
     {
-        $this->snapshots[] = $snapshot;
+        $id = $this->nextId++;
+        $this->entries[$id] = ['name' => $name, 'snapshot' => $snapshot];
 
-        return array_key_last($this->snapshots);
+        return $id;
     }
 
-    public function snapshot(int $index): Snapshot
+    public function remove(int $id): void
     {
-        return $this->snapshots[$index] ?? throw new \OutOfRangeException("No snapshot #{$index} in session");
+        unset($this->entries[$id]);
     }
 
-    /** @return list<Snapshot> */
-    public function snapshots(): array
+    public function has(int $id): bool
     {
-        return $this->snapshots;
+        return isset($this->entries[$id]);
+    }
+
+    public function snapshot(int $id): Snapshot
+    {
+        return ($this->entries[$id] ?? throw new \OutOfRangeException("No snapshot #{$id} in session"))['snapshot'];
+    }
+
+    /** @return array<int, array{name: string, snapshot: Snapshot}> */
+    public function entries(): array
+    {
+        return $this->entries;
     }
 }

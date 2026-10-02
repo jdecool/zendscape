@@ -1,0 +1,87 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Amp\Http\Server\DefaultErrorHandler;
+use Amp\Http\Server\Driver\DefaultHttpDriverFactory;
+use Amp\Http\Server\SocketHttpServer;
+use Psr\Log\AbstractLogger;
+use Psr\Log\LogLevel;
+use Zendscape\Http\Api;
+use Zendscape\Session;
+use Zendscape\Snapshot\Snapshot;
+
+require __DIR__ . '/../vendor/autoload.php';
+
+const USAGE = <<<'TXT'
+    Usage: zendscape serve [--port=7777] [--memory-limit=-1] [snapshot.rmem ...]
+
+    Serves the Zendscape explorer on http://127.0.0.1:<port>/ with the given snapshots open.
+
+    TXT;
+
+// getopt() stops at the first positional argument, so options after `serve` need a manual parse.
+$options = [];
+$positional = [];
+foreach (array_slice($argv, 1) as $arg) {
+    if (preg_match('/^--([a-z-]+)(?:=(.*))?$/', $arg, $m) === 1) {
+        $options[$m[1]] = $m[2] ?? '';
+    } else {
+        $positional[] = $arg;
+    }
+}
+$command = array_shift($positional);
+if (isset($options['help']) || $command !== 'serve' || array_diff(array_keys($options), ['port', 'memory-limit']) !== []) {
+    fwrite(STDERR, USAGE);
+    exit(isset($options['help']) || $command === null ? 0 : 1);
+}
+$port = (int) ($options['port'] ?? 7777);
+// Large snapshots need gigabytes (docs/spike-0.md); PHP's 128M default cannot even open one.
+ini_set('memory_limit', $options['memory-limit'] ?? '-1');
+
+$logger = new class extends AbstractLogger {
+    public function log($level, Stringable|string $message, array $context = []): void
+    {
+        // amphp warns at every start about xdebug and assertions, which only matter to its own throughput.
+        if (in_array($level, [LogLevel::EMERGENCY, LogLevel::ALERT, LogLevel::CRITICAL, LogLevel::ERROR], true)) {
+            fwrite(STDERR, "[{$level}] {$message}\n");
+        }
+    }
+};
+
+$session = new Session();
+foreach ($positional as $file) {
+    fwrite(STDERR, "Loading {$file}...\n");
+    if (!is_file($file)) {
+        fwrite(STDERR, "No such file: {$file}\n");
+        exit(1);
+    }
+    $session->add(basename($file), Snapshot::open($file));
+}
+
+$uploadDir = sys_get_temp_dir() . '/zendscape-' . getmypid();
+if (!is_dir($uploadDir) && !mkdir($uploadDir, 0o700)) {
+    fwrite(STDERR, "Cannot create {$uploadDir}\n");
+    exit(1);
+}
+
+$server = SocketHttpServer::createForDirectAccess(
+    $logger,
+    // Snapshots are uploaded whole; reli's own dumps of large heaps run into hundreds of megabytes.
+    httpDriverFactory: new DefaultHttpDriverFactory($logger, bodySizeLimit: 4 * 1024 ** 3),
+);
+$server->expose("127.0.0.1:{$port}");
+$api = new Api($session, __DIR__ . '/../public', $uploadDir);
+$server->start($api, new DefaultErrorHandler());
+
+// Read back from the socket: --port=0 asks the system for any free port.
+echo 'Zendscape listening on http://', $server->getServers()[0]->getAddress(), "/\n";
+
+Amp\trapSignal([SIGINT, SIGTERM]);
+
+$server->stop();
+foreach (array_keys($session->entries()) as $id) {
+    $api->close($id);
+}
+@rmdir($uploadDir);

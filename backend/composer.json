@@ -3,10 +3,14 @@
     "description": "Interactive 3D explorer for PHP memory snapshots",
     "type": "project",
     "license": "MIT",
+    "bin": [
+        "bin/zendscape"
+    ],
     "require": {
         "php": "^8.4.1",
         "ext-ffi": "*",
         "ext-pcntl": "*",
+        "amphp/http-server": "^3",
         "reliforp/reli-prof": "0.12.0"
     },
     "autoload": {
@@ -26,7 +30,10 @@
         }
     },
     "scripts": {
-        "lint": ["php-cs-fixer check --diff", "phpstan analyse"],
+        "lint": [
+            "php-cs-fixer check --diff",
+            "phpstan analyse"
+        ],
         "fix": "php-cs-fixer fix",
         "test": "phpunit"
     },

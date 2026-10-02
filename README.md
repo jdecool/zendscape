@@ -69,6 +69,15 @@ Memory snapshots contain secrets: environment variables, tokens, user data.
 Zendscape only listens on loopback, uses no CDN and no telemetry, deletes temporary files on shutdown, and masks string values by default.
 Only open snapshots you trust.
 
+## Usage
+
+```bash
+backend/bin/zendscape serve [--port=7777] [--memory-limit=-1] [snapshot.rmem ...]
+```
+
+Open the printed URL.
+Snapshots can be given on the command line or uploaded from the browser.
+
 ## Development
 
 Requirements: PHP 8.4.1+ with `ext-ffi` and `ext-pcntl`, Composer, Node.js 24+, and Docker for regenerating fixtures.
@@ -84,6 +93,7 @@ cd frontend && npm install
 npm run lint    # TypeScript and ESLint
 npm test        # Vitest
 npm run build   # outputs to backend/public
+npm run dev     # Vite dev server, proxies /api to a backend on port 7777
 
 # Fixtures: capture every scenario in scenarios/ into fixtures/
 tools/capture-fixtures.sh

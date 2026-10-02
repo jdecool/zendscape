@@ -43,8 +43,12 @@ final class Snapshot
         $reader = Reader::open($path);
         // SCC detection is only needed for cycle analysis and costs a third of the load time.
         $substrate = GraphSubstrate::createFromBinary($reader, skipScc: true);
+        $model = RmemModel::fromSubstrate($substrate, $reader);
+        // reli loads string values lazily, and labels embed them once loaded:
+        // loading upfront keeps a node's label the same whatever was queried before.
+        $model->ensureLocationInfoLoaded();
 
-        return new self($path, $reader, $substrate, RmemModel::fromSubstrate($substrate, $reader));
+        return new self($path, $reader, $substrate, $model);
     }
 
     public function nodeCount(): int
@@ -52,10 +56,27 @@ final class Snapshot
         return $this->substrate->getNodeCount();
     }
 
+    public function hasNode(int $nodeId): bool
+    {
+        return $nodeId >= 0 && $nodeId < $this->substrate->getNodeCount();
+    }
+
+    /** @return list<int> */
+    public function roots(): array
+    {
+        return $this->substrate->getRoots();
+    }
+
+    public function nodeType(int $nodeId): string
+    {
+        return $this->substrate->getNodeType($nodeId) ?? '';
+    }
+
     public function summary(int $nodeId): NodeSummary
     {
         return new NodeSummary(
             $nodeId,
+            $this->nodeType($nodeId),
             $this->model->nodeLabel($nodeId),
             $this->substrate->getNodeSize($nodeId),
             $this->substrate->getSubtreeSize($nodeId),
