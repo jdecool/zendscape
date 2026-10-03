@@ -37,6 +37,37 @@ composer install --no-dev
 
 Once the package is published, `composer global require zendscape/zendscape` installs the `zendscape` command, with the built frontend inside the package.
 
+## Try it with the bundled examples
+
+The repository ships four leaks captured with reli, so you can explore without capturing anything.
+Each leak is a script in `scenarios/` and two snapshots in `fixtures/`: before (`t0`) and after (`t1`) the leak grows.
+
+| Scenario | Leak | Class to look for |
+|----------|------|-------------------|
+| `static-cache` | A static array used as a cache that nothing evicts | `Product` |
+| `listeners` | Event listeners added on every request and never removed | `AuditListener` |
+| `closure-this` | Closures stored globally that keep `$this` alive | `OrderHandler` |
+| `object-cycle` | Parent and child objects in cycles, with the cycle collector disabled | `TreeNode` |
+
+Open the `static-cache` pair:
+
+```bash
+backend/bin/zendscape serve fixtures/static-cache.t0.rmem fixtures/static-cache.t1.rmem
+# or with Docker:
+docker run --rm -p 127.0.0.1:7777:7777 -v "$PWD/fixtures:/snapshots:ro" zendscape serve /snapshots/static-cache.t0.rmem /snapshots/static-cache.t1.rmem
+```
+
+Then open http://127.0.0.1:7777/ and:
+
+1. Click a page in the scene to fly to it, then click an allocation to inspect it.
+2. In the inspector, open Classes, pick `Product`, then an instance.
+   "Why is it still alive?" shows `class_table › productcache › static_properties › items`, drawn as orange arcs in the scene.
+3. In "Compare with", pick `static-cache.t0.rmem`.
+   The Changes tab shows the `items` array growing by about 215 KB and 1,000 new `Product` objects, which turn green in the scene.
+
+Replace `static-cache` with another scenario name to explore the other leaks.
+In `object-cycle`, "Why is it still alive?" explains that no root reaches the objects: they are garbage the cycle collector has not freed.
+
 ## Walkthrough: find a leaking worker
 
 ### 1. Capture two snapshots with reli
